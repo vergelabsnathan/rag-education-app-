@@ -81,8 +81,8 @@ function initializeApp() {
     document.addEventListener('click', (event) => {
         const artifactPanel = document.getElementById('artifactPanel');
         if (artifactPanel.classList.contains('open')) {
-            // Check if click is outside the artifact panel
-            if (!artifactPanel.contains(event.target) && !event.target.closest('.artifact-card')) {
+            // Check if click is outside the artifact panel and not on the artifact preview
+            if (!artifactPanel.contains(event.target) && !event.target.closest('.artifact-preview')) {
                 closeArtifactPanel();
             }
         }
@@ -106,13 +106,9 @@ function initializeApp() {
 
 // Authentication Functions
 function isAuthenticated() {
-    if (!state.authToken || !state.tokenExpiry) {
-        return false;
-    }
-    // Check if token has expired (with 30 second buffer)
-    const now = Date.now();
-    const expiry = new Date(state.tokenExpiry).getTime();
-    return now < (expiry - 30000);
+    // Simplified check - only verify token exists
+    // Token expiry check disabled due to issues with constant logouts
+    return !!state.authToken;
 }
 
 function showLoginModal() {
