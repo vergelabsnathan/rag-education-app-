@@ -3,7 +3,9 @@ const CONFIG = {
     apiUrl: 'https://n8n.srv1263678.hstgr.cloud/webhook/education-chat',
     authUrl: 'https://n8n.srv1263678.hstgr.cloud/webhook/auth/login',
     conversationsUrl: 'https://n8n.srv1263678.hstgr.cloud/webhook/conversations',
-    storageKey: 'education_assistant_data'
+    storageKey: 'education_assistant_data',
+    cookieName: 'edu_auth',
+    cookieExpireDays: 365 // Keep logged in for 1 year
 };
 
 // Dutch translations
@@ -104,11 +106,51 @@ function initializeApp() {
     console.log('Onderwijs Assistent initialized', { sessionId: state.sessionId, authenticated: isAuthenticated() });
 }
 
+// Cookie Helper Functions
+function setCookie(name, value, days) {
+    const expires = new Date();
+    expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+    document.cookie = `${name}=${encodeURIComponent(value)};expires=${expires.toUTCString()};path=/;SameSite=Lax`;
+}
+
+function getCookie(name) {
+    const nameEQ = name + "=";
+    const ca = document.cookie.split(';');
+    for (let i = 0; i < ca.length; i++) {
+        let c = ca[i].trim();
+        if (c.indexOf(nameEQ) === 0) {
+            return decodeURIComponent(c.substring(nameEQ.length));
+        }
+    }
+    return null;
+}
+
+function deleteCookie(name) {
+    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+}
+
 // Authentication Functions
 function isAuthenticated() {
-    // Simplified check - only verify token exists
-    // Token expiry check disabled due to issues with constant logouts
-    return !!state.authToken;
+    // Check both state and cookie for persistent login
+    if (state.authToken) return true;
+
+    // Try to restore from cookie
+    const cookieAuth = getCookie(CONFIG.cookieName);
+    if (cookieAuth) {
+        try {
+            const authData = JSON.parse(cookieAuth);
+            if (authData.token) {
+                state.authToken = authData.token;
+                state.user = authData.user;
+                saveState();
+                return true;
+            }
+        } catch (e) {
+            console.error('Failed to parse auth cookie:', e);
+            deleteCookie(CONFIG.cookieName);
+        }
+    }
+    return false;
 }
 
 function showLoginModal() {
@@ -164,14 +206,22 @@ async function handleLogin(event) {
         const data = await response.json();
 
         if (data.success && data.token) {
-            // Store auth data
+            // Store auth data in state
             state.authToken = data.token;
-            state.tokenExpiry = data.expiresAt;
+            state.tokenExpiry = null; // No longer using expiry
             state.user = {
                 name: data.user?.displayName || username,
                 role: data.user?.role || 'user',
                 tier: data.user?.tier || 'free'
             };
+
+            // Save to persistent cookie (stays logged in)
+            const authData = {
+                token: data.token,
+                user: state.user
+            };
+            setCookie(CONFIG.cookieName, JSON.stringify(authData), CONFIG.cookieExpireDays);
+
             saveState();
 
             // Clear form
@@ -212,6 +262,10 @@ function handleLogout() {
     state.authToken = null;
     state.tokenExpiry = null;
     state.user = null;
+
+    // Clear persistent cookie
+    deleteCookie(CONFIG.cookieName);
+
     saveState();
     updateUserInfo();
     showLoginModal();
@@ -620,10 +674,12 @@ async function sendMessage() {
         });
 
         if (!response.ok) {
-            if (response.status === 401 || response.status === 403) {
-                // Token expired or invalid
+            if (response.status === 401) {
+                // Only logout on explicit 401 Unauthorized
+                // Don't logout on 403 (might be rate limit) or other errors
                 state.authToken = null;
                 state.tokenExpiry = null;
+                deleteCookie(CONFIG.cookieName);
                 saveState();
                 showLoginModal();
                 addMessage({
@@ -638,10 +694,12 @@ async function sendMessage() {
         const data = await response.json();
         console.log('Response:', data);
 
-        // Check for auth errors in response
-        if (data.error && (data.error.includes('session') || data.error.includes('token') || data.error.includes('auth'))) {
+        // Only logout on explicit authentication failures, not on general errors
+        // This prevents constant logouts from transient errors
+        if (data.error && data.authRequired === true) {
             state.authToken = null;
             state.tokenExpiry = null;
+            deleteCookie(CONFIG.cookieName);
             saveState();
             showLoginModal();
             addMessage({
