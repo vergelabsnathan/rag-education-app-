@@ -31,7 +31,7 @@
     --radius-full: 9999px;
 
     --sidebar-width: 260px;
-    --artifact-width: 500px;
+    --artifact-width: 40%;
     --max-chat-width: 768px;
 
     --transition-fast: 150ms ease;
@@ -624,25 +624,23 @@ body {
     color: var(--text-secondary);
 }
 
-/* Artifact Panel */
+/* Artifact Panel - Claude-style inline panel */
 .artifact-panel {
-    width: var(--artifact-width);
+    width: 0;
+    min-width: 0;
     background: var(--bg-artifact);
     color: white;
     display: flex;
     flex-direction: column;
-    position: fixed;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    transform: translateX(100%);
-    transition: transform var(--transition-normal);
-    z-index: 200;
-    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.3);
+    flex-shrink: 0;
+    overflow: hidden;
+    transition: width var(--transition-normal), min-width var(--transition-normal);
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .artifact-panel.open {
-    transform: translateX(0);
+    width: var(--artifact-width);
+    min-width: 400px;
 }
 
 .artifact-header {
@@ -738,9 +736,9 @@ body {
 
 /* Responsive */
 @media (max-width: 1200px) {
-    .artifact-panel {
-        width: 100%;
-        max-width: 500px;
+    .artifact-panel.open {
+        width: 50%;
+        min-width: 350px;
     }
 }
 
@@ -776,7 +774,16 @@ body {
     }
 
     .artifact-panel {
-        max-width: 100%;
+        position: fixed;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        z-index: 200;
+    }
+
+    .artifact-panel.open {
+        width: 100%;
+        min-width: 100%;
     }
 }
 
