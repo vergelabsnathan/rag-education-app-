@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Onderwijs Assistent</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Admin-specific styles */
+        .admin-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+        }
+
+        .admin-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 24px;
+            background: var(--bg-sidebar);
+            border-bottom: var(--border-thin);
+        }
+
+        .admin-header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .admin-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .admin-logo svg {
+            color: var(--accent-primary);
+        }
+
+        .admin-badge {
+            background: var(--accent-primary);
+            color: white;
+            padding: 4px 10px;
+            border-radius: var(--radius-full);
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .admin-header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .back-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: transparent;
+            border: var(--border-thin);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .back-btn:hover {
+            background: var(--bg-sidebar-hover);
+            border-color: var(--accent-primary);
+        }
+
+        .admin-main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            background: var(--bg-primary);
+        }
+
+        .admin-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .admin-section {
+            background: var(--bg-secondary);
+            border: var(--border-thin);
+            border-radius: var(--radius-md);
+            margin-bottom: 24px;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border-bottom: var(--border-thin);
+        }
+
+        .section-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .add-user-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--accent-primary);
+            border: none;
+            border-radius: var(--radius-md);
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .add-user-btn:hover {
+            background: var(--accent-hover);
+        }
+
+        .users-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .users-table th,
+        .users-table td {
+            padding: 12px 20px;
+            text-align: left;
+            border-bottom: var(--border-thin);
+        }
+
+        .users-table th {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            background: var(--bg-sidebar);
+        }
+
+        .users-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .users-table tr:hover td {
+            background: var(--bg-sidebar);
+        }
+
+        .user-name {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .user-username {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .role-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: var(--radius-full);
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .role-admin {
+            background: rgba(201, 162, 39, 0.15);
+            color: var(--accent-primary);
+        }
+
+        .role-user {
+            background: var(--bg-sidebar);
+            color: var(--text-secondary);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: var(--radius-full);
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-active {
+            background: rgba(34, 197, 94, 0.15);
+            color: #16a34a;
+        }
+
+        .status-inactive {
+            background: rgba(239, 68, 68, 0.15);
+            color: #dc2626;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        .status-active .status-dot {
+            background: #16a34a;
+        }
+
+        .status-inactive .status-dot {
+            background: #dc2626;
+        }
+
+        .action-btn {
+            padding: 6px 12px;
+            background: transparent;
+            border: var(--border-thin);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .action-btn:hover {
+            background: var(--bg-sidebar-hover);
+            color: var(--text-primary);
+        }
+
+        .action-btn.delete:hover {
+            background: rgba(239, 68, 68, 0.1);
+            color: #dc2626;
+            border-color: #dc2626;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 20px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state svg {
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .loading-state {
+            text-align: center;
+            padding: 48px 20px;
+            color: var(--text-secondary);
+        }
+
+        .loading-spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-backdrop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            position: relative;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-lg);
+            width: 100%;
+            max-width: 480px;
+            margin: 20px;
+            z-index: 1;
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px;
+            border-bottom: var(--border-thin);
+        }
+
+        .modal-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-secondary);
+            padding: 4px;
+        }
+
+        .modal-close:hover {
+            color: var(--text-primary);
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--bg-input);
+            border: var(--border-thin);
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            transition: border-color var(--transition-fast);
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+
+        .form-group input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            padding: 16px 24px;
+            border-top: var(--border-thin);
+        }
+
+        .btn-cancel {
+            padding: 10px 20px;
+            background: transparent;
+            border: var(--border-thin);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .btn-cancel:hover {
+            background: var(--bg-sidebar-hover);
+        }
+
+        .btn-submit {
+            padding: 10px 20px;
+            background: var(--accent-primary);
+            border: none;
+            border-radius: var(--radius-md);
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .btn-submit:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            color: #dc2626;
+            padding: 12px 16px;
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        .error-message.active {
+            display: block;
+        }
+
+        .success-message {
+            background: rgba(34, 197, 94, 0.1);
+            color: #16a34a;
+            padding: 12px 16px;
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        .success-message.active {
+            display: block;
+        }
+
+        /* Stats cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--bg-secondary);
+            border: var(--border-thin);
+            border-radius: var(--radius-md);
+            padding: 20px;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* Date formatting */
+        .date-cell {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Header -->
+        <header class="admin-header">
+            <div class="admin-header-left">
+                <div class="admin-logo">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>Onderwijs Assistent</span>
+                </div>
+                <span class="admin-badge">Admin</span>
+            </div>
+            <div class="admin-header-right">
+                <button class="back-btn" onclick="goToChat()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 12H5M12 19l-7-7 7-7"/>
+                    </svg>
+                    Terug naar chat
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="admin-main">
+            <div class="admin-content">
+                <!-- Error/Success messages -->
+                <div class="error-message" id="globalError"></div>
+                <div class="success-message" id="globalSuccess"></div>
+
+                <!-- Stats -->
+                <div class="stats-grid" id="statsGrid">
+                    <div class="stat-card">
+                        <div class="stat-label">Totaal gebruikers</div>
+                        <div class="stat-value" id="statTotal">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Actieve gebruikers</div>
+                        <div class="stat-value" id="statActive">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Admins</div>
+                        <div class="stat-value" id="statAdmins">-</div>
+                    </div>
+                </div>
+
+                <!-- Users Section -->
+                <div class="admin-section">
+                    <div class="section-header">
+                        <h2 class="section-title">Gebruikers</h2>
+                        <button class="add-user-btn" onclick="openAddUserModal()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 5v14M5 12h14"/>
+                            </svg>
+                            Gebruiker toevoegen
+                        </button>
+                    </div>
+
+                    <div id="usersContainer">
+                        <div class="loading-state">
+                            <div class="loading-spinner"></div>
+                            <p>Gebruikers laden...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add User Modal -->
+    <div class="modal" id="addUserModal">
+        <div class="modal-backdrop" onclick="closeAddUserModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Nieuwe gebruiker</h3>
+                <button class="modal-close" onclick="closeAddUserModal()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <form onsubmit="handleAddUser(event)">
+                <div class="modal-body">
+                    <div class="error-message" id="addUserError"></div>
+
+                    <div class="form-group">
+                        <label for="username">Gebruikersnaam</label>
+                        <input type="text" id="username" name="username" placeholder="bijv. jan.jansen" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="displayName">Weergavenaam</label>
+                        <input type="text" id="displayName" name="displayName" placeholder="bijv. Jan Jansen">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">Wachtwoord</label>
+                        <input type="password" id="password" name="password" placeholder="Minimaal 8 tekens" required minlength="8">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="role">Rol</label>
+                        <select id="role" name="role">
+                            <option value="user">Gebruiker</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeAddUserModal()">Annuleren</button>
+                    <button type="submit" class="btn-submit" id="addUserSubmit">Toevoegen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE = 'https://n8n.srv1263678.hstgr.cloud/webhook';
+
+        // State
+        let users = [];
+        let authToken = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuth();
+        });
+
+        // Check if user is authenticated and is admin
+        function checkAuth() {
+            // Read auth token from the same location as app.js
+            const STORAGE_KEY = 'education_assistant_data';
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    authToken = parsed.authToken;
+
+                    // Also check if user is admin
+                    if (parsed.user && parsed.user.role !== 'admin') {
+                        showGlobalError('Geen toegang. Admin rechten vereist.');
+                        setTimeout(() => {
+                            window.location.href = 'index.html';
+                        }, 2000);
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load auth state:', e);
+            }
+
+            // Fallback to cookie
+            if (!authToken) {
+                authToken = getCookie('authToken');
+            }
+
+            if (!authToken) {
+                showGlobalError('Niet ingelogd. Je wordt doorgestuurd naar de login pagina.');
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 2000);
+                return;
+            }
+
+            loadUsers();
+        }
+
+        // Get cookie value
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        }
+
+        // Load users from API
+        async function loadUsers() {
+            try {
+                const response = await fetch(`${API_BASE}/admin/users`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    if (response.status === 401) {
+                        showGlobalError('Geen toegang. Admin rechten vereist.');
+                        setTimeout(() => {
+                            window.location.href = 'index.html';
+                        }, 2000);
+                        return;
+                    }
+                    throw new Error(data.error || 'Kon gebruikers niet laden');
+                }
+
+                // Handle both array and single object response
+                users = Array.isArray(data.users) ? data.users : [data.users];
+                renderUsers();
+                updateStats();
+
+            } catch (error) {
+                console.error('Error loading users:', error);
+                showGlobalError('Fout bij laden van gebruikers: ' + error.message);
+                document.getElementById('usersContainer').innerHTML = `
+                    <div class="empty-state">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 8v4M12 16h.01"/>
+                        </svg>
+                        <p>Kon gebruikers niet laden</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Render users table
+        function renderUsers() {
+            const container = document.getElementById('usersContainer');
+
+            if (!users || users.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                        <p>Geen gebruikers gevonden</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>Gebruiker</th>
+                            <th>Rol</th>
+                            <th>Status</th>
+                            <th>Aangemaakt</th>
+                            <th>Acties</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${users.map(user => `
+                            <tr>
+                                <td>
+                                    <div class="user-name">${escapeHtml(user.display_name || user.username)}</div>
+                                    <div class="user-username">@${escapeHtml(user.username)}</div>
+                                </td>
+                                <td>
+                                    <span class="role-badge role-${user.role}">
+                                        ${user.role === 'admin' ? 'Administrator' : 'Gebruiker'}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="status-badge status-${user.is_active ? 'active' : 'inactive'}">
+                                        <span class="status-dot"></span>
+                                        ${user.is_active ? 'Actief' : 'Inactief'}
+                                    </span>
+                                </td>
+                                <td class="date-cell">${formatDate(user.created_at)}</td>
+                                <td>
+                                    ${user.role !== 'admin' ? `
+                                        <button class="action-btn delete" onclick="deactivateUser('${user.id}', '${escapeHtml(user.username)}')">
+                                            ${user.is_active ? 'Deactiveren' : 'Gedeactiveerd'}
+                                        </button>
+                                    ` : `
+                                        <span style="color: var(--text-secondary); font-size: 0.75rem;">-</span>
+                                    `}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // Update stats
+        function updateStats() {
+            const total = users.length;
+            const active = users.filter(u => u.is_active).length;
+            const admins = users.filter(u => u.role === 'admin').length;
+
+            document.getElementById('statTotal').textContent = total;
+            document.getElementById('statActive').textContent = active;
+            document.getElementById('statAdmins').textContent = admins;
+        }
+
+        // Format date
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('nl-NL', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+
+        // Escape HTML
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Open add user modal
+        function openAddUserModal() {
+            document.getElementById('addUserModal').classList.add('active');
+            document.getElementById('username').focus();
+        }
+
+        // Close add user modal
+        function closeAddUserModal() {
+            document.getElementById('addUserModal').classList.remove('active');
+            document.getElementById('addUserError').classList.remove('active');
+            document.querySelector('#addUserModal form').reset();
+        }
+
+        // Handle add user form submit
+        async function handleAddUser(event) {
+            event.preventDefault();
+
+            const submitBtn = document.getElementById('addUserSubmit');
+            const errorDiv = document.getElementById('addUserError');
+
+            const username = document.getElementById('username').value.trim();
+            const displayName = document.getElementById('displayName').value.trim() || username;
+            const password = document.getElementById('password').value;
+            const role = document.getElementById('role').value;
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Bezig...';
+            errorDiv.classList.remove('active');
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/users`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username,
+                        displayName,
+                        password,
+                        role
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Kon gebruiker niet aanmaken');
+                }
+
+                closeAddUserModal();
+                showGlobalSuccess(`Gebruiker "${username}" is aangemaakt`);
+                loadUsers();
+
+            } catch (error) {
+                console.error('Error adding user:', error);
+                errorDiv.textContent = error.message;
+                errorDiv.classList.add('active');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Toevoegen';
+            }
+        }
+
+        // Deactivate user
+        async function deactivateUser(userId, username) {
+            if (!confirm(`Weet je zeker dat je "${username}" wilt deactiveren?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/users/${userId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Kon gebruiker niet deactiveren');
+                }
+
+                showGlobalSuccess(`Gebruiker "${username}" is gedeactiveerd`);
+                loadUsers();
+
+            } catch (error) {
+                console.error('Error deactivating user:', error);
+                showGlobalError('Fout bij deactiveren: ' + error.message);
+            }
+        }
+
+        // Show global error
+        function showGlobalError(message) {
+            const errorDiv = document.getElementById('globalError');
+            errorDiv.textContent = message;
+            errorDiv.classList.add('active');
+            setTimeout(() => {
+                errorDiv.classList.remove('active');
+            }, 5000);
+        }
+
+        // Show global success
+        function showGlobalSuccess(message) {
+            const successDiv = document.getElementById('globalSuccess');
+            successDiv.textContent = message;
+            successDiv.classList.add('active');
+            setTimeout(() => {
+                successDiv.classList.remove('active');
+            }, 3000);
+        }
+
+        // Navigate to chat
+        function goToChat() {
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>

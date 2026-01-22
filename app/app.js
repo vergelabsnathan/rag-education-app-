@@ -35,7 +35,14 @@ const LANG = {
     loadingConversations: 'Gesprekken laden...',
     deleteConversation: 'Gesprek verwijderen',
     confirmDelete: 'Weet je zeker dat je dit gesprek wilt verwijderen?',
-    renameConversation: 'Gesprek hernoemen'
+    renameConversation: 'Gesprek hernoemen',
+    // Source citations
+    sources: 'Bronnen',
+    confidenceHigh: 'Hoge betrouwbaarheid',
+    confidenceMedium: 'Gemiddelde betrouwbaarheid',
+    confidenceLow: 'Lage betrouwbaarheid',
+    confidenceNone: 'Geen bronnen gevonden',
+    basedOnSources: 'Gebaseerd op'
 };
 
 // State
@@ -81,8 +88,8 @@ function initializeApp() {
     document.addEventListener('click', (event) => {
         const artifactPanel = document.getElementById('artifactPanel');
         if (artifactPanel.classList.contains('open')) {
-            // Check if click is outside the artifact panel
-            if (!artifactPanel.contains(event.target) && !event.target.closest('.artifact-card')) {
+            // Check if click is outside the artifact panel AND not on artifact preview
+            if (!artifactPanel.contains(event.target) && !event.target.closest('.artifact-preview')) {
                 closeArtifactPanel();
             }
         }
@@ -256,7 +263,6 @@ async function loadConversationsFromServer() {
                 messageCount: conv.message_count || 0
             }));
             state.conversationsLoaded = true;
-            renderConversationList();
             saveState();
             console.log('Loaded conversations from server:', state.conversations.length);
         }
@@ -265,6 +271,8 @@ async function loadConversationsFromServer() {
         // Fall back to local storage conversations
     } finally {
         state.isSyncing = false;
+        // Always re-render to clear "loading" message, even on error
+        renderConversationList();
     }
 }
 
@@ -514,6 +522,55 @@ function createMessageHTML(message, index) {
         contentHTML = `<div class="message-text">${marked.parse(message.text || '')}</div>`;
     }
 
+    // Add sources and confidence for assistant messages
+    let sourcesHTML = '';
+    if (!isUser && message.sources && message.sources.length > 0) {
+        const confidenceLabel = getConfidenceLabel(message.confidence);
+        const confidenceClass = getConfidenceClass(message.confidence);
+
+        // Deduplicate sources by filename, keeping highest relevance score
+        const uniqueSources = [];
+        const seenFilenames = new Map();
+        for (const source of message.sources) {
+            const filename = source.filename || source.title || 'Unknown';
+            if (!seenFilenames.has(filename)) {
+                seenFilenames.set(filename, uniqueSources.length);
+                uniqueSources.push({...source});
+            } else {
+                // Update if this one has higher relevance
+                const existingIdx = seenFilenames.get(filename);
+                if (source.relevanceScore > uniqueSources[existingIdx].relevanceScore) {
+                    uniqueSources[existingIdx].relevanceScore = source.relevanceScore;
+                }
+            }
+        }
+
+        sourcesHTML = `
+            <div class="message-sources">
+                <div class="sources-header">
+                    <span class="confidence-badge ${confidenceClass}">${confidenceLabel}</span>
+                    <span class="sources-count">${LANG.basedOnSources} ${uniqueSources.length} ${LANG.sources.toLowerCase()}</span>
+                </div>
+                <div class="sources-list">
+                    ${uniqueSources.map((source, i) => `
+                        <div class="source-item">
+                            <span class="source-number">[${i + 1}]</span>
+                            <span class="source-title">${escapeHtml(source.title || source.filename || 'Document ' + (i + 1))}</span>
+                            ${source.relevanceScore ? `<span class="source-score">${(source.relevanceScore * 100).toFixed(1)}%</span>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    } else if (!isUser && message.confidence === 'none') {
+        // Show a subtle indicator when no sources were found
+        sourcesHTML = `
+            <div class="message-sources no-sources">
+                <span class="confidence-badge confidence-none">${LANG.confidenceNone}</span>
+            </div>
+        `;
+    }
+
     return `
         <div class="message ${isUser ? 'user' : 'assistant'}">
             <div class="message-inner">
@@ -521,10 +578,29 @@ function createMessageHTML(message, index) {
                 <div class="message-content">
                     <div class="message-role">${isUser ? LANG.you : LANG.assistant}</div>
                     ${contentHTML}
+                    ${sourcesHTML}
                 </div>
             </div>
         </div>
     `;
+}
+
+function getConfidenceLabel(confidence) {
+    switch (confidence) {
+        case 'high': return LANG.confidenceHigh;
+        case 'medium': return LANG.confidenceMedium;
+        case 'low': return LANG.confidenceLow;
+        default: return LANG.confidenceNone;
+    }
+}
+
+function getConfidenceClass(confidence) {
+    switch (confidence) {
+        case 'high': return 'confidence-high';
+        case 'medium': return 'confidence-medium';
+        case 'low': return 'confidence-low';
+        default: return 'confidence-none';
+    }
 }
 
 function renderConversationList() {
@@ -575,6 +651,30 @@ function updateUserInfo() {
 
         if (state.user.usage) {
             usageInfo.textContent = `${state.user.usage.remaining} ${LANG.artifactsRemaining}`;
+        }
+
+        // Show/hide admin button based on role
+        const existingAdminBtn = document.querySelector('.admin-btn');
+        if (state.user.role === 'admin') {
+            if (!existingAdminBtn) {
+                const adminBtn = document.createElement('button');
+                adminBtn.className = 'admin-btn';
+                adminBtn.title = 'Admin Dashboard';
+                adminBtn.onclick = () => window.location.href = 'admin.html';
+                adminBtn.innerHTML = `
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 4.5v15m0 0l6.75-6.75M12 19.5l-6.75-6.75"/>
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <path d="M9 9h6M9 12h6M9 15h4"/>
+                    </svg>
+                `;
+                const settingsBtn = document.querySelector('.settings-btn');
+                if (settingsBtn) {
+                    settingsBtn.parentNode.insertBefore(adminBtn, settingsBtn);
+                }
+            }
+        } else if (existingAdminBtn) {
+            existingAdminBtn.remove();
         }
     }
 }
@@ -672,6 +772,10 @@ async function sendMessage() {
 async function handleResponse(data) {
     const output = data.output || data.response || data.message || '';
 
+    // Get sources and confidence from response
+    const sources = data.sources || [];
+    const confidence = data.confidence || 'none';
+
     // Check if backend explicitly marked this as an artifact
     // The backend sends isArtifact: true when it's a generated document (lesson plan, workshop, etc.)
     // NOT when it's just an information/explanation response
@@ -701,7 +805,9 @@ async function handleResponse(data) {
                 type: type,
                 content: output,
                 snippet: snippet
-            }
+            },
+            sources: sources,
+            confidence: confidence
         });
 
         // Update conversation title if it's the first artifact
@@ -714,7 +820,7 @@ async function handleResponse(data) {
             }
         }
     } else {
-        await addMessage({ role: 'assistant', text: output });
+        await addMessage({ role: 'assistant', text: output, sources: sources, confidence: confidence });
     }
 
     // Update user info if available
