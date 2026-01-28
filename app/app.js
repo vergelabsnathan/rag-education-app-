@@ -3,6 +3,7 @@ const CONFIG = {
     apiUrl: 'https://n8n.srv1263678.hstgr.cloud/webhook/education-chat',
     authUrl: 'https://n8n.srv1263678.hstgr.cloud/webhook/auth/login',
     conversationsUrl: 'https://n8n.srv1263678.hstgr.cloud/webhook/conversations',
+    feedbackUrl: 'https://n8n.srv1263678.hstgr.cloud/webhook/feedback',
     storageKey: 'education_assistant_data'
 };
 
@@ -42,7 +43,63 @@ const LANG = {
     confidenceMedium: 'Gemiddelde betrouwbaarheid',
     confidenceLow: 'Lage betrouwbaarheid',
     confidenceNone: 'Geen bronnen gevonden',
-    basedOnSources: 'Gebaseerd op'
+    basedOnSources: 'Gebaseerd op',
+    // File attachments
+    fileTooBig: 'Bestand is te groot (max 10MB)',
+    fileTooMany: 'Maximaal 3 bestanden toegestaan',
+    fileTypeNotSupported: 'Bestandstype niet ondersteund. Gebruik PDF of TXT.',
+    dropFilesHere: 'Sleep bestanden hier naartoe',
+    attachments: 'Bijlagen',
+    // Feedback
+    feedbackSent: 'Bedankt voor je feedback!',
+    feedbackError: 'Kon feedback niet versturen. Probeer het opnieuw.',
+    feedbackEmpty: 'Nog geen feedback voor dit gesprek',
+    feedbackPlaceholder: 'Schrijf hier je feedback, suggesties of problemen...',
+    feedbackLabel: 'Deel je feedback over dit gesprek:',
+    feedbackSubmit: 'Verstuur feedback',
+    feedbackPrevious: 'Eerdere feedback in dit gesprek',
+    noConversationForFeedback: 'Start eerst een gesprek om feedback te geven.',
+    // Dynamic status messages (Claude Code style)
+    statusMessages: [
+        'Kennisbank doorzoeken',
+        'Bronnen analyseren',
+        'Context verzamelen',
+        'Relevante passages selecteren',
+        'Antwoord formuleren',
+        'Informatie verwerken',
+        'Documenten raadplegen',
+        'Vectordatabase bevragen',
+        'Semantische matches zoeken',
+        'Relevantie berekenen',
+        'Bronnen rangschikken',
+        'Kennis combineren',
+        'Onderwijscontext toepassen',
+        'Praktijkvoorbeelden zoeken',
+        'Didactische kaders raadplegen',
+        'Literatuur doorzoeken',
+        'Wetenschappelijke bronnen checken',
+        'Implementatiestrategieën analyseren',
+        'Best practices verzamelen',
+        'Formatieve principes toepassen',
+        'Pedagogische inzichten ophalen',
+        'Lesplanstructuren vergelijken',
+        'Docentperspectief integreren',
+        'Leerlingbetrokkenheid analyseren',
+        'Differentiatiemogelijkheden bekijken',
+        'Evaluatiecriteria formuleren',
+        'Lesdoelen afstemmen',
+        'Werkvormen selecteren',
+        'Tijdsindeling optimaliseren',
+        'Materialen inventariseren'
+    ]
+};
+
+// File upload configuration
+const FILE_CONFIG = {
+    maxSize: 10 * 1024 * 1024,  // 10MB
+    maxFiles: 3,
+    allowedTypes: ['application/pdf', 'text/plain', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+    allowedExtensions: ['.pdf', '.txt', '.docx']
 };
 
 // State
@@ -56,8 +113,13 @@ let state = {
     authToken: null,
     tokenExpiry: null,
     conversationsLoaded: false,
-    isSyncing: false
+    isSyncing: false,
+    attachedFiles: []  // Array of {id, file, name, size, type, base64, status}
 };
+
+// Status indicator state
+let statusInterval = null;
+let statusMessageIndex = 0;
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
@@ -74,11 +136,25 @@ function initializeApp() {
         saveState();
     }
 
+    // IMPORTANT: If there's no current conversation, clear any stale messages
+    // This prevents old messages from appearing in new chats
+    if (!state.currentConversation) {
+        state.messages = [];
+        saveState();
+    }
+
     // Set up input handling
     const input = document.getElementById('messageInput');
     input.addEventListener('input', () => {
-        document.getElementById('sendBtn').disabled = !input.value.trim();
+        updateSendButtonState();
     });
+
+    // Initialize drag & drop for file uploads
+    initDragDrop();
+
+    // Clear any stale attachments from previous sessions
+    state.attachedFiles = [];
+    renderAttachments();
 
     // Render initial UI
     renderConversationList();
@@ -102,9 +178,12 @@ function initializeApp() {
         hideLoginModal();
         // Load conversations from server
         loadConversationsFromServer();
-        // Check if we have an active conversation
-        if (state.currentConversation && state.messages.length > 0) {
-            showMessages();
+        // Check if we have an active conversation - reload messages from server to ensure freshness
+        if (state.currentConversation) {
+            // Force reload messages from server to ensure we have the correct data
+            const convId = state.currentConversation;
+            state.currentConversation = null; // Temporarily clear to allow loadConversation to run
+            loadConversation(convId);
         }
     }
 
@@ -324,23 +403,47 @@ async function loadConversationMessages(conversationId) {
         const data = await response.json();
 
         if (data.success && data.messages) {
-            return data.messages.map(msg => {
+            console.log('Loading messages from server:', data.messages.length, 'messages');
+            return data.messages.map((msg, idx) => {
                 const message = {
                     role: msg.role,
                     text: msg.content,
                     timestamp: msg.createdAt
                 };
 
-                // Restore artifact from metadata if present
+                // Restore artifact, sources, and confidence from metadata if present
                 if (msg.metadata) {
+                    console.log(`Message ${idx} metadata type:`, typeof msg.metadata, msg.metadata);
                     try {
-                        const metadata = typeof msg.metadata === 'string' ? JSON.parse(msg.metadata) : msg.metadata;
+                        let metadata;
+                        if (typeof msg.metadata === 'string') {
+                            // Handle string (TEXT column or double-encoded JSON)
+                            metadata = JSON.parse(msg.metadata);
+                        } else if (typeof msg.metadata === 'object') {
+                            // Handle object (JSONB column returns object directly)
+                            metadata = msg.metadata;
+                        } else {
+                            console.warn(`Unexpected metadata type: ${typeof msg.metadata}`);
+                            metadata = {};
+                        }
+
+                        console.log(`Message ${idx} parsed metadata:`, metadata);
+
                         if (metadata.artifact) {
                             message.artifact = metadata.artifact;
                             message.text = LANG.artifactCreated; // Restore placeholder text for artifacts
                         }
+                        // Restore sources and confidence for displaying citations
+                        if (metadata.sources) {
+                            message.sources = metadata.sources;
+                            console.log(`Message ${idx} restored ${metadata.sources.length} sources`);
+                        }
+                        if (metadata.confidence) {
+                            message.confidence = metadata.confidence;
+                            console.log(`Message ${idx} restored confidence: ${metadata.confidence}`);
+                        }
                     } catch (e) {
-                        console.error('Failed to parse message metadata:', e);
+                        console.error('Failed to parse message metadata:', e, 'Raw metadata:', msg.metadata);
                     }
                 }
 
@@ -525,8 +628,21 @@ function createMessageHTML(message, index) {
     // Add sources and confidence for assistant messages
     let sourcesHTML = '';
     if (!isUser && message.sources && message.sources.length > 0) {
-        const confidenceLabel = getConfidenceLabel(message.confidence);
-        const confidenceClass = getConfidenceClass(message.confidence);
+        // If we have sources but no confidence set, determine it from source count/scores
+        let effectiveConfidence = message.confidence;
+        if (!effectiveConfidence || effectiveConfidence === 'none') {
+            // Infer confidence from sources: 4+ sources with good scores = high, 2-3 = medium, 1 = low
+            const avgScore = message.sources.reduce((sum, s) => sum + (s.relevanceScore || 0), 0) / message.sources.length;
+            if (message.sources.length >= 4 && avgScore > 0.5) {
+                effectiveConfidence = 'high';
+            } else if (message.sources.length >= 2 || avgScore > 0.3) {
+                effectiveConfidence = 'medium';
+            } else {
+                effectiveConfidence = 'low';
+            }
+        }
+        const confidenceLabel = getConfidenceLabel(effectiveConfidence);
+        const confidenceClass = getConfidenceClass(effectiveConfidence);
 
         // Deduplicate sources by filename, keeping highest relevance score
         const uniqueSources = [];
@@ -683,8 +799,10 @@ function updateUserInfo() {
 async function sendMessage() {
     const input = document.getElementById('messageInput');
     const message = input.value.trim();
+    const hasFiles = state.attachedFiles.length > 0;
 
-    if (!message || state.isLoading) return;
+    // Allow sending with just files (no message required)
+    if ((!message && !hasFiles) || state.isLoading) return;
 
     // Check authentication before sending
     if (!isAuthenticated()) {
@@ -701,8 +819,22 @@ async function sendMessage() {
     input.style.height = 'auto';
     document.getElementById('sendBtn').disabled = true;
 
+    // Capture files before clearing state
+    const filesToSend = [...state.attachedFiles];
+    state.attachedFiles = [];
+    renderAttachments();
+
+    // Create display message (show file names in user message)
+    let displayMessage = message;
+    if (filesToSend.length > 0) {
+        const fileNames = filesToSend.map(f => f.name).join(', ');
+        displayMessage = message
+            ? `${message}\n\n[${LANG.attachments}: ${fileNames}]`
+            : `[${LANG.attachments}: ${fileNames}]`;
+    }
+
     // Add user message (await to ensure conversation is created on server first)
-    await addMessage({ role: 'user', text: message });
+    await addMessage({ role: 'user', text: displayMessage });
 
     // Show messages view if on welcome screen
     showMessages();
@@ -711,16 +843,32 @@ async function sendMessage() {
     setLoading(true);
 
     try {
+        // Prepare file data for API
+        const files = filesToSend.map(f => ({
+            name: f.name,
+            type: f.type,
+            size: f.size,
+            data: f.base64
+        }));
+
+        // Build request body
+        const requestBody = {
+            chatInput: message || `Analyseer de bijgevoegde bestanden: ${filesToSend.map(f => f.name).join(', ')}`,
+            sessionId: state.sessionId,
+            token: state.authToken
+        };
+
+        // Only include files if there are any
+        if (files.length > 0) {
+            requestBody.files = files;
+        }
+
         const response = await fetch(CONFIG.apiUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                chatInput: message,
-                sessionId: state.sessionId,
-                token: state.authToken
-            })
+            body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) {
@@ -863,7 +1011,15 @@ async function addMessage(message) {
     if (state.currentConversation) {
         // Determine content to save - for artifacts, save the full artifact content
         const contentToSave = message.artifact ? message.artifact.content : message.text;
-        const metadata = message.artifact ? { artifact: message.artifact } : null;
+
+        // Build metadata including artifact, sources, and confidence
+        let metadata = null;
+        if (message.artifact || message.sources || message.confidence) {
+            metadata = {};
+            if (message.artifact) metadata.artifact = message.artifact;
+            if (message.sources) metadata.sources = message.sources;
+            if (message.confidence) metadata.confidence = message.confidence;
+        }
 
         await saveMessageOnServer(state.currentConversation, message.role, contentToSave, metadata);
     }
@@ -882,6 +1038,20 @@ function startNewChat() {
     state.sessionId = generateSessionId();
     state.messages = [];
     state.currentConversation = null;
+
+    // Clear any cached messages to prevent mixing between conversations
+    try {
+        const saved = localStorage.getItem(CONFIG.storageKey);
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            parsed.messages = [];
+            parsed.currentConversation = null;
+            localStorage.setItem(CONFIG.storageKey, JSON.stringify(parsed));
+        }
+    } catch (e) {
+        console.error('Failed to clear cached messages:', e);
+    }
+
     saveState();
 
     showWelcome();
@@ -890,13 +1060,17 @@ function startNewChat() {
     document.getElementById('messageInput').focus();
 }
 
-async function loadConversation(conversationId) {
-    if (conversationId === state.currentConversation) return;
+async function loadConversation(conversationId, forceReload = false) {
+    // Skip if same conversation unless force reload is requested
+    if (conversationId === state.currentConversation && !forceReload) return;
 
-    // Update state
+    // Update state - clear messages FIRST before setting new conversation
+    state.messages = [];
     state.currentConversation = conversationId;
     state.sessionId = conversationId;
-    state.messages = [];
+
+    // Force save to ensure clean state before loading new messages
+    saveState();
 
     renderConversationList();
     showMessages();
@@ -905,12 +1079,19 @@ async function loadConversation(conversationId) {
     setLoading(true);
     try {
         const messages = await loadConversationMessages(conversationId);
-        if (messages.length > 0) {
+        // Replace messages entirely - don't merge with any previous state
+        // Only set if this is still the current conversation (user might have switched)
+        if (state.currentConversation === conversationId) {
             state.messages = messages;
             renderMessages();
         }
     } catch (error) {
         console.error('Failed to load conversation:', error);
+        // On error, keep empty messages rather than stale data
+        if (state.currentConversation === conversationId) {
+            state.messages = [];
+            renderMessages();
+        }
     } finally {
         setLoading(false);
     }
@@ -1184,11 +1365,69 @@ async function openInGoogleDocs() {
 // UI Helpers
 function setLoading(loading) {
     state.isLoading = loading;
-    document.getElementById('typingIndicator').classList.toggle('active', loading);
     document.getElementById('sendBtn').disabled = loading;
 
     if (loading) {
+        // Create dynamic status indicator below last message
+        createStatusIndicator();
+        startStatusCycling();
         scrollToBottom();
+    } else {
+        // Remove status indicator
+        stopStatusCycling();
+        removeStatusIndicator();
+    }
+}
+
+function createStatusIndicator() {
+    // Remove any existing status indicator first
+    removeStatusIndicator();
+
+    const messagesContainer = document.getElementById('messagesContainer');
+    const statusDiv = document.createElement('div');
+    statusDiv.id = 'dynamicStatus';
+    statusDiv.className = 'dynamic-status';
+
+    // Start with first status message
+    statusMessageIndex = 0;
+    const initialMessage = LANG.statusMessages[statusMessageIndex];
+
+    statusDiv.innerHTML = `
+        <div class="status-content">
+            <div class="status-spinner"></div>
+            <span class="status-text">${initialMessage}...</span>
+        </div>
+    `;
+
+    messagesContainer.appendChild(statusDiv);
+}
+
+function removeStatusIndicator() {
+    const statusDiv = document.getElementById('dynamicStatus');
+    if (statusDiv) {
+        statusDiv.remove();
+    }
+}
+
+function startStatusCycling() {
+    // Clear any existing interval
+    stopStatusCycling();
+
+    // Cycle through status messages every 2.5 seconds
+    statusInterval = setInterval(() => {
+        statusMessageIndex = (statusMessageIndex + 1) % LANG.statusMessages.length;
+        const statusText = document.querySelector('#dynamicStatus .status-text');
+        if (statusText) {
+            statusText.textContent = LANG.statusMessages[statusMessageIndex] + '...';
+        }
+        scrollToBottom();
+    }, 2500);
+}
+
+function stopStatusCycling() {
+    if (statusInterval) {
+        clearInterval(statusInterval);
+        statusInterval = null;
     }
 }
 
@@ -1228,6 +1467,384 @@ function escapeHtml(text) {
 
 function capitalizeFirst(str) {
     return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+// ===== FILE ATTACHMENT FUNCTIONS =====
+
+function openFilePicker() {
+    document.getElementById('fileInput').click();
+}
+
+function handleFileSelect(event) {
+    const files = Array.from(event.target.files);
+    processFiles(files);
+    // Reset input so same file can be selected again
+    event.target.value = '';
+}
+
+async function processFiles(files) {
+    for (const file of files) {
+        // Validate file count
+        if (state.attachedFiles.length >= FILE_CONFIG.maxFiles) {
+            showFileError(LANG.fileTooMany);
+            return;
+        }
+
+        // Validate file size
+        if (file.size > FILE_CONFIG.maxSize) {
+            showFileError(LANG.fileTooBig);
+            continue;
+        }
+
+        // Validate file type
+        const ext = '.' + file.name.split('.').pop().toLowerCase();
+        if (!FILE_CONFIG.allowedExtensions.includes(ext)) {
+            showFileError(LANG.fileTypeNotSupported);
+            continue;
+        }
+
+        // Convert to base64
+        try {
+            const base64 = await fileToBase64(file);
+            const fileObj = {
+                id: generateFileId(),
+                file: file,
+                name: file.name,
+                size: file.size,
+                type: getFileType(file.name),
+                base64: base64,
+                status: 'ready' // 'ready', 'processing', 'error'
+            };
+
+            state.attachedFiles.push(fileObj);
+            renderAttachments();
+            updateSendButtonState();
+        } catch (error) {
+            console.error('Error processing file:', error);
+            showFileError('Fout bij verwerken van bestand');
+        }
+    }
+}
+
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+            // Remove data URL prefix (e.g., "data:application/pdf;base64,")
+            const base64 = reader.result.split(',')[1];
+            resolve(base64);
+        };
+        reader.onerror = error => reject(error);
+    });
+}
+
+function generateFileId() {
+    return 'file-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
+}
+
+function getFileType(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    switch (ext) {
+        case 'pdf': return 'pdf';
+        case 'txt': return 'txt';
+        case 'docx': return 'docx';
+        default: return 'unknown';
+    }
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function removeAttachment(fileId) {
+    state.attachedFiles = state.attachedFiles.filter(f => f.id !== fileId);
+    renderAttachments();
+    updateSendButtonState();
+}
+
+function renderAttachments() {
+    const container = document.getElementById('attachmentsContainer');
+    if (!container) return;
+
+    if (state.attachedFiles.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+
+    container.innerHTML = state.attachedFiles.map(file => `
+        <div class="file-chip ${file.status}" data-id="${file.id}">
+            <div class="file-chip-icon ${file.type}">
+                ${getFileIcon(file.type)}
+            </div>
+            <div class="file-chip-info">
+                <span class="file-chip-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
+                <span class="file-chip-size">${formatFileSize(file.size)}</span>
+            </div>
+            <button class="file-chip-remove" onclick="removeAttachment('${file.id}')" title="Verwijderen">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+    `).join('');
+}
+
+function getFileIcon(type) {
+    switch (type) {
+        case 'pdf':
+            return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <path d="M9 15h6"/>
+            </svg>`;
+        case 'txt':
+            return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+            </svg>`;
+        case 'docx':
+            return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <path d="M8 13h2l1 4 1-4h2"/>
+            </svg>`;
+        default:
+            return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+            </svg>`;
+    }
+}
+
+function showFileError(message) {
+    // Simple alert for now, could be enhanced with toast notification
+    alert(message);
+}
+
+function updateSendButtonState() {
+    const input = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const hasText = input && input.value.trim();
+    const hasFiles = state.attachedFiles.length > 0;
+    sendBtn.disabled = !(hasText || hasFiles) || state.isLoading;
+}
+
+// ===== DRAG & DROP =====
+
+function initDragDrop() {
+    const dropZone = document.getElementById('dropZoneOverlay');
+    if (!dropZone) return;
+
+    // Prevent default drag behaviors
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        document.body.addEventListener(eventName, preventDefaults, false);
+    });
+
+    // Highlight drop zone on drag
+    let dragCounter = 0;
+
+    document.body.addEventListener('dragenter', (e) => {
+        dragCounter++;
+        if (e.dataTransfer.types.includes('Files')) {
+            dropZone.classList.add('active');
+        }
+    }, false);
+
+    document.body.addEventListener('dragleave', (e) => {
+        dragCounter--;
+        if (dragCounter === 0) {
+            dropZone.classList.remove('active');
+        }
+    }, false);
+
+    document.body.addEventListener('drop', (e) => {
+        dragCounter = 0;
+        dropZone.classList.remove('active');
+        const files = Array.from(e.dataTransfer.files);
+        if (files.length > 0) {
+            processFiles(files);
+        }
+    }, false);
+}
+
+function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+}
+
+// ===== FEEDBACK FUNCTIONS =====
+
+function toggleFeedbackPanel() {
+    const panel = document.getElementById('feedbackPanel');
+    const isOpen = panel.classList.contains('open');
+
+    if (isOpen) {
+        closeFeedbackPanel();
+    } else {
+        openFeedbackPanel();
+    }
+}
+
+function openFeedbackPanel() {
+    const panel = document.getElementById('feedbackPanel');
+    panel.classList.add('open');
+
+    // Load feedback for current conversation
+    if (state.currentConversation) {
+        loadFeedbackForConversation();
+    } else {
+        renderFeedbackList([]);
+    }
+}
+
+function closeFeedbackPanel() {
+    const panel = document.getElementById('feedbackPanel');
+    panel.classList.remove('open');
+}
+
+async function loadFeedbackForConversation() {
+    if (!state.currentConversation || !isAuthenticated()) {
+        renderFeedbackList([]);
+        return;
+    }
+
+    try {
+        const response = await fetch(CONFIG.feedbackUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action: 'list',
+                token: state.authToken,
+                conversationId: state.currentConversation
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.feedback) {
+            renderFeedbackList(data.feedback);
+        } else {
+            renderFeedbackList([]);
+        }
+    } catch (error) {
+        console.error('Failed to load feedback:', error);
+        renderFeedbackList([]);
+    }
+}
+
+function renderFeedbackList(feedbackItems) {
+    const container = document.getElementById('feedbackList');
+
+    if (!feedbackItems || feedbackItems.length === 0) {
+        container.innerHTML = `<div class="feedback-empty">${LANG.feedbackEmpty}</div>`;
+        return;
+    }
+
+    container.innerHTML = feedbackItems.map(item => `
+        <div class="feedback-item">
+            <div class="feedback-item-text">${escapeHtml(item.comment)}</div>
+            <div class="feedback-item-time">${formatFeedbackTime(item.created_at)}</div>
+        </div>
+    `).join('');
+}
+
+function formatFeedbackTime(timestamp) {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    return date.toLocaleString('nl-NL', {
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+async function submitFeedback() {
+    const input = document.getElementById('feedbackInput');
+    const submitBtn = document.getElementById('feedbackSubmitBtn');
+    const comment = input.value.trim();
+
+    if (!comment) return;
+
+    if (!state.currentConversation) {
+        alert(LANG.noConversationForFeedback);
+        return;
+    }
+
+    if (!isAuthenticated()) {
+        showLoginModal();
+        return;
+    }
+
+    // Disable button and show loading
+    submitBtn.disabled = true;
+    submitBtn.classList.add('loading');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<span>Versturen...</span>';
+
+    try {
+        const response = await fetch(CONFIG.feedbackUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action: 'save',
+                token: state.authToken,
+                conversationId: state.currentConversation,
+                comment: comment
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Clear input
+            input.value = '';
+
+            // Show success message briefly
+            showFeedbackSuccess();
+
+            // Reload feedback list
+            await loadFeedbackForConversation();
+        } else {
+            alert(LANG.feedbackError);
+        }
+    } catch (error) {
+        console.error('Failed to submit feedback:', error);
+        alert(LANG.feedbackError);
+    } finally {
+        // Re-enable button
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('loading');
+        submitBtn.innerHTML = originalText;
+    }
+}
+
+function showFeedbackSuccess() {
+    const form = document.querySelector('.feedback-form');
+    const successDiv = document.createElement('div');
+    successDiv.className = 'feedback-success';
+    successDiv.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        ${LANG.feedbackSent}
+    `;
+    form.appendChild(successDiv);
+
+    // Remove after 3 seconds
+    setTimeout(() => {
+        successDiv.remove();
+    }, 3000);
 }
 
 // Configure marked.js

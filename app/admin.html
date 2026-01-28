@@ -482,6 +482,205 @@
             font-size: 0.875rem;
             color: var(--text-secondary);
         }
+
+        /* RAG Tuning Styles */
+        .config-section {
+            padding: 20px;
+            border-bottom: var(--border-thin);
+        }
+
+        .config-section:last-child {
+            border-bottom: none;
+        }
+
+        .config-section-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .config-section-title svg {
+            color: var(--accent-primary);
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+        }
+
+        .config-item {
+            background: var(--bg-primary);
+            border: var(--border-thin);
+            border-radius: var(--radius-md);
+            padding: 14px;
+        }
+
+        .config-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .config-item-label {
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .config-item-value {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--accent-primary);
+            min-width: 40px;
+            text-align: right;
+        }
+
+        .config-item-description {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+
+        .config-slider {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: var(--bg-sidebar);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .config-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--accent-primary);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.15s ease;
+        }
+
+        .config-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+        }
+
+        .config-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--accent-primary);
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
+        .config-input {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--bg-input);
+            border: var(--border-thin);
+            border-radius: var(--radius-sm);
+            font-size: 0.8125rem;
+            color: var(--text-primary);
+        }
+
+        .config-input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+
+        .config-toggle {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            background: var(--bg-sidebar);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .config-toggle.active {
+            background: var(--accent-primary);
+        }
+
+        .config-toggle::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.2s ease;
+        }
+
+        .config-toggle.active::after {
+            transform: translateX(20px);
+        }
+
+        .config-range-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.6875rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .unsaved-indicator {
+            display: none;
+            color: var(--accent-primary);
+            font-size: 0.75rem;
+            margin-left: 8px;
+        }
+
+        .unsaved-indicator.visible {
+            display: inline;
+        }
+
+        .config-tabs {
+            display: flex;
+            border-bottom: var(--border-thin);
+            background: var(--bg-sidebar);
+        }
+
+        .config-tab {
+            padding: 12px 20px;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            background: none;
+            border: none;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+        }
+
+        .config-tab:hover {
+            color: var(--text-primary);
+        }
+
+        .config-tab.active {
+            color: var(--accent-primary);
+            border-bottom-color: var(--accent-primary);
+        }
+
+        .config-tab-content {
+            display: none;
+        }
+
+        .config-tab-content.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -530,6 +729,10 @@
                         <div class="stat-label">Admins</div>
                         <div class="stat-value" id="statAdmins">-</div>
                     </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Feedback items</div>
+                        <div class="stat-value" id="statFeedback">-</div>
+                    </div>
                 </div>
 
                 <!-- Users Section -->
@@ -548,6 +751,58 @@
                         <div class="loading-state">
                             <div class="loading-spinner"></div>
                             <p>Gebruikers laden...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Feedback Section -->
+                <div class="admin-section">
+                    <div class="section-header">
+                        <h2 class="section-title">Test Feedback</h2>
+                        <button class="add-user-btn" onclick="loadFeedback()" style="background: transparent; border: var(--border-thin); color: var(--text-primary);">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M23 4v6h-6M1 20v-6h6"/>
+                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                            </svg>
+                            Vernieuwen
+                        </button>
+                    </div>
+
+                    <div id="feedbackContainer">
+                        <div class="loading-state">
+                            <div class="loading-spinner"></div>
+                            <p>Feedback laden...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RAG Tuning Section -->
+                <div class="admin-section">
+                    <div class="section-header">
+                        <h2 class="section-title">RAG Tuning Parameters</h2>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="add-user-btn" onclick="resetToDefaults()" style="background: transparent; border: var(--border-thin); color: var(--text-primary);">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                                    <path d="M3 3v5h5"/>
+                                </svg>
+                                Reset
+                            </button>
+                            <button class="add-user-btn" onclick="saveRagConfig()" id="saveConfigBtn">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                                    <polyline points="17 21 17 13 7 13 7 21"/>
+                                    <polyline points="7 3 7 8 15 8"/>
+                                </svg>
+                                Opslaan
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="ragConfigContainer">
+                        <div class="loading-state">
+                            <div class="loading-spinner"></div>
+                            <p>RAG configuratie laden...</p>
                         </div>
                     </div>
                 </div>
@@ -608,6 +863,7 @@
 
         // State
         let users = [];
+        let feedback = [];
         let authToken = null;
 
         // Initialize
@@ -652,6 +908,7 @@
             }
 
             loadUsers();
+            loadFeedback();
         }
 
         // Get cookie value
@@ -914,10 +1171,524 @@
             }, 3000);
         }
 
+        // Load feedback from API
+        async function loadFeedback() {
+            const container = document.getElementById('feedbackContainer');
+            container.innerHTML = `
+                <div class="loading-state">
+                    <div class="loading-spinner"></div>
+                    <p>Feedback laden...</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch(`${API_BASE}/feedback`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'listAll',
+                        token: authToken
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.feedback) {
+                    feedback = data.feedback;
+                    renderFeedback();
+                } else {
+                    feedback = [];
+                    renderFeedback();
+                }
+
+            } catch (error) {
+                console.error('Error loading feedback:', error);
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 8v4M12 16h.01"/>
+                        </svg>
+                        <p>Kon feedback niet laden</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Render feedback table
+        function renderFeedback() {
+            const container = document.getElementById('feedbackContainer');
+
+            // Update feedback stat
+            document.getElementById('statFeedback').textContent = feedback.length;
+
+            if (!feedback || feedback.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                        </svg>
+                        <p>Nog geen feedback ontvangen</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>Feedback</th>
+                            <th>Gesprek</th>
+                            <th>Gebruiker</th>
+                            <th>Datum</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${feedback.map(item => `
+                            <tr>
+                                <td style="max-width: 400px;">
+                                    <div style="white-space: pre-wrap; word-break: break-word; font-size: 0.875rem; line-height: 1.5;">
+                                        ${escapeHtml(item.comment)}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="user-username" title="${escapeHtml(item.conversation_id || '')}">
+                                        ${escapeHtml(item.conversation_title || 'Onbekend gesprek')}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="user-name">${escapeHtml(item.user_name || 'Onbekend')}</div>
+                                </td>
+                                <td class="date-cell">${formatDateTime(item.created_at)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // Format date with time
+        function formatDateTime(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('nl-NL', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
         // Navigate to chat
         function goToChat() {
             window.location.href = 'index.html';
         }
+
+        // ============== RAG CONFIG TUNING ==============
+
+        let ragConfig = null;
+        let originalConfig = null;
+        let hasUnsavedChanges = false;
+
+        const defaultConfig = {
+            retrieval: {
+                primaryTopK: 5,
+                enrichmentTopK: 6,
+                maxPrimaryChunks: 4,
+                maxEnrichmentPerDoc: 2,
+                totalChunks: 8,
+                minScoreThreshold: 0.25,
+                minSourcesRequired: 1
+            },
+            intent: {
+                formatiefThreshold: 1,
+                eefThreshold: 1,
+                coachingThreshold: 1,
+                highConfidenceMin: 2,
+                mediumConfidenceMin: 1
+            },
+            patternBoosts: {
+                pseudoformativiteit: 4,
+                implementationGap: 3,
+                tacitKnowledge: 3,
+                sustainability: 2,
+                toolMisuse: 4,
+                expertCoaching: 3
+            },
+            confidence: {
+                highSourceCount: 4,
+                mediumSourceCount: 2,
+                highAvgScore: 0.6,
+                mediumAvgScore: 0.35,
+                sourceWeight: 0.6,
+                scoreWeight: 0.4
+            },
+            coreDocs: {
+                kneyber: 'Rene-Kneyber-Formatief-handelen-WEB.pdf',
+                eef: 'EEF-Effective-Professional-Development-Guidance-Report.pdf',
+                implementation: 'a_schools_guide_to_implementation.pdf'
+            },
+            queryExpansion: {
+                enabled: true,
+                maxExpansionTerms: 5
+            }
+        };
+
+        // Load RAG config
+        async function loadRagConfig() {
+            const container = document.getElementById('ragConfigContainer');
+
+            try {
+                const response = await fetch(`${API_BASE}/rag-config`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'get' })
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.config) {
+                    ragConfig = data.config;
+                } else {
+                    ragConfig = JSON.parse(JSON.stringify(defaultConfig));
+                }
+            } catch (error) {
+                console.error('Error loading RAG config:', error);
+                ragConfig = JSON.parse(JSON.stringify(defaultConfig));
+            }
+
+            originalConfig = JSON.parse(JSON.stringify(ragConfig));
+            renderRagConfig();
+        }
+
+        // Render RAG config UI
+        function renderRagConfig() {
+            const container = document.getElementById('ragConfigContainer');
+
+            container.innerHTML = `
+                <div class="config-tabs">
+                    <button class="config-tab active" onclick="showConfigTab('retrieval')">Retrieval</button>
+                    <button class="config-tab" onclick="showConfigTab('intent')">Intent</button>
+                    <button class="config-tab" onclick="showConfigTab('patterns')">Patterns</button>
+                    <button class="config-tab" onclick="showConfigTab('confidence')">Confidence</button>
+                    <button class="config-tab" onclick="showConfigTab('other')">Overig</button>
+                </div>
+
+                <!-- Retrieval Tab -->
+                <div class="config-tab-content active" id="tab-retrieval">
+                    <div class="config-section">
+                        <div class="config-section-title">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"/>
+                                <path d="M21 21l-4.35-4.35"/>
+                            </svg>
+                            Retrieval Instellingen
+                        </div>
+                        <div class="config-grid">
+                            ${renderSlider('retrieval.primaryTopK', 'Primary Top-K', 'Aantal chunks uit primaire documenten', 1, 15, 1)}
+                            ${renderSlider('retrieval.enrichmentTopK', 'Enrichment Top-K', 'Aantal chunks voor verrijking', 1, 15, 1)}
+                            ${renderSlider('retrieval.maxPrimaryChunks', 'Max Primary Chunks', 'Maximum chunks van primair document', 1, 10, 1)}
+                            ${renderSlider('retrieval.maxEnrichmentPerDoc', 'Max per Document', 'Maximum chunks per verrijkingsdocument', 1, 5, 1)}
+                            ${renderSlider('retrieval.totalChunks', 'Totaal Chunks', 'Totaal aantal chunks in context', 4, 20, 1)}
+                            ${renderSlider('retrieval.minScoreThreshold', 'Min Score', 'Minimum relevantie score', 0.1, 0.6, 0.05)}
+                            ${renderSlider('retrieval.minSourcesRequired', 'Min Bronnen', 'Minimum vereiste bronnen', 1, 5, 1)}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Intent Tab -->
+                <div class="config-tab-content" id="tab-intent">
+                    <div class="config-section">
+                        <div class="config-section-title">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                <polyline points="22 4 12 14.01 9 11.01"/>
+                            </svg>
+                            Intent Classification Drempels
+                        </div>
+                        <div class="config-grid">
+                            ${renderSlider('intent.formatiefThreshold', 'Formatief Drempel', 'Score voor formatief classificatie', 1, 5, 1)}
+                            ${renderSlider('intent.eefThreshold', 'EEF Drempel', 'Score voor EEF classificatie', 1, 5, 1)}
+                            ${renderSlider('intent.coachingThreshold', 'Coaching Drempel', 'Score voor coaching classificatie', 1, 5, 1)}
+                            ${renderSlider('intent.highConfidenceMin', 'High Confidence Min', 'Minimum voor hoge zekerheid', 1, 5, 1)}
+                            ${renderSlider('intent.mediumConfidenceMin', 'Medium Confidence Min', 'Minimum voor gemiddelde zekerheid', 1, 3, 1)}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Patterns Tab -->
+                <div class="config-tab-content" id="tab-patterns">
+                    <div class="config-section">
+                        <div class="config-section-title">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                            </svg>
+                            Patroon Boosts
+                        </div>
+                        <div class="config-grid">
+                            ${renderSlider('patternBoosts.pseudoformativiteit', 'Pseudo-formativiteit', 'Boost voor quiz/tool zonder opvolging', 0, 8, 1)}
+                            ${renderSlider('patternBoosts.implementationGap', 'Implementation Gap', 'Boost voor onderzoek vs praktijk kloof', 0, 8, 1)}
+                            ${renderSlider('patternBoosts.tacitKnowledge', 'Tacit Knowledge', 'Boost voor impliciete kennis patronen', 0, 8, 1)}
+                            ${renderSlider('patternBoosts.sustainability', 'Sustainability', 'Boost voor verduurzaming vragen', 0, 8, 1)}
+                            ${renderSlider('patternBoosts.toolMisuse', 'Tool Misuse', 'Boost voor oppervlakkig toolgebruik', 0, 8, 1)}
+                            ${renderSlider('patternBoosts.expertCoaching', 'Expert Coaching', 'Boost voor ervaren docent coaching', 0, 8, 1)}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Confidence Tab -->
+                <div class="config-tab-content" id="tab-confidence">
+                    <div class="config-section">
+                        <div class="config-section-title">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                            </svg>
+                            Confidence Calibratie
+                        </div>
+                        <div class="config-grid">
+                            ${renderSlider('confidence.highSourceCount', 'High - Bronnen', 'Aantal bronnen voor "hoog"', 2, 8, 1)}
+                            ${renderSlider('confidence.mediumSourceCount', 'Medium - Bronnen', 'Aantal bronnen voor "medium"', 1, 5, 1)}
+                            ${renderSlider('confidence.highAvgScore', 'High - Avg Score', 'Gem. score voor "hoog"', 0.3, 0.8, 0.05)}
+                            ${renderSlider('confidence.mediumAvgScore', 'Medium - Avg Score', 'Gem. score voor "medium"', 0.2, 0.6, 0.05)}
+                            ${renderSlider('confidence.sourceWeight', 'Source Weight', 'Gewicht bronnen in berekening', 0.2, 0.8, 0.1)}
+                            ${renderSlider('confidence.scoreWeight', 'Score Weight', 'Gewicht scores in berekening', 0.2, 0.8, 0.1)}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Other Tab -->
+                <div class="config-tab-content" id="tab-other">
+                    <div class="config-section">
+                        <div class="config-section-title">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                            </svg>
+                            Core Documents
+                        </div>
+                        <div class="config-grid">
+                            ${renderTextInput('coreDocs.kneyber', 'Kneyber Document', 'Primair document voor Formatief')}
+                            ${renderTextInput('coreDocs.eef', 'EEF Document', 'Primair document voor EEF')}
+                            ${renderTextInput('coreDocs.implementation', 'Implementation Document', 'Primair document voor Implementatie')}
+                        </div>
+                    </div>
+                    <div class="config-section">
+                        <div class="config-section-title">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="17 1 21 5 17 9"/>
+                                <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+                                <polyline points="7 23 3 19 7 15"/>
+                                <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+                            </svg>
+                            Query Expansion
+                        </div>
+                        <div class="config-grid">
+                            ${renderToggle('queryExpansion.enabled', 'Query Expansion', 'Automatische term expansie')}
+                            ${renderSlider('queryExpansion.maxExpansionTerms', 'Max Expansion Terms', 'Maximum toegevoegde termen', 1, 10, 1)}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Add event listeners
+            document.querySelectorAll('.config-slider').forEach(slider => {
+                slider.addEventListener('input', handleSliderChange);
+            });
+            document.querySelectorAll('.config-input').forEach(input => {
+                input.addEventListener('change', handleInputChange);
+            });
+            document.querySelectorAll('.config-toggle').forEach(toggle => {
+                toggle.addEventListener('click', handleToggleChange);
+            });
+        }
+
+        function renderSlider(path, label, description, min, max, step) {
+            const value = getConfigValue(path);
+            const displayValue = step < 1 ? value.toFixed(2) : value;
+            return `
+                <div class="config-item">
+                    <div class="config-item-header">
+                        <span class="config-item-label">${label}</span>
+                        <span class="config-item-value" id="value-${path.replace(/\./g, '-')}">${displayValue}</span>
+                    </div>
+                    <div class="config-item-description">${description}</div>
+                    <input type="range" class="config-slider"
+                        data-path="${path}"
+                        min="${min}" max="${max}" step="${step}"
+                        value="${value}">
+                    <div class="config-range-labels">
+                        <span>${min}</span>
+                        <span>${max}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderTextInput(path, label, description) {
+            const value = getConfigValue(path);
+            return `
+                <div class="config-item">
+                    <div class="config-item-header">
+                        <span class="config-item-label">${label}</span>
+                    </div>
+                    <div class="config-item-description">${description}</div>
+                    <input type="text" class="config-input" data-path="${path}" value="${escapeHtml(value)}">
+                </div>
+            `;
+        }
+
+        function renderToggle(path, label, description) {
+            const value = getConfigValue(path);
+            return `
+                <div class="config-item">
+                    <div class="config-item-header">
+                        <span class="config-item-label">${label}</span>
+                        <div class="config-toggle ${value ? 'active' : ''}" data-path="${path}"></div>
+                    </div>
+                    <div class="config-item-description">${description}</div>
+                </div>
+            `;
+        }
+
+        function getConfigValue(path) {
+            const parts = path.split('.');
+            let value = ragConfig;
+            for (const part of parts) {
+                value = value?.[part];
+            }
+            return value;
+        }
+
+        function setConfigValue(path, value) {
+            const parts = path.split('.');
+            let obj = ragConfig;
+            for (let i = 0; i < parts.length - 1; i++) {
+                obj = obj[parts[i]];
+            }
+            obj[parts[parts.length - 1]] = value;
+            markUnsaved();
+        }
+
+        function handleSliderChange(e) {
+            const path = e.target.dataset.path;
+            const step = parseFloat(e.target.step);
+            let value = parseFloat(e.target.value);
+
+            // Update display
+            const displayId = `value-${path.replace(/\./g, '-')}`;
+            const displayEl = document.getElementById(displayId);
+            if (displayEl) {
+                displayEl.textContent = step < 1 ? value.toFixed(2) : value;
+            }
+
+            setConfigValue(path, value);
+        }
+
+        function handleInputChange(e) {
+            const path = e.target.dataset.path;
+            setConfigValue(path, e.target.value);
+        }
+
+        function handleToggleChange(e) {
+            const toggle = e.target.closest('.config-toggle');
+            const path = toggle.dataset.path;
+            const currentValue = getConfigValue(path);
+            const newValue = !currentValue;
+
+            toggle.classList.toggle('active', newValue);
+            setConfigValue(path, newValue);
+        }
+
+        function markUnsaved() {
+            hasUnsavedChanges = true;
+            const btn = document.getElementById('saveConfigBtn');
+            if (btn && !btn.textContent.includes('*')) {
+                btn.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                        <polyline points="17 21 17 13 7 13 7 21"/>
+                        <polyline points="7 3 7 8 15 8"/>
+                    </svg>
+                    Opslaan *
+                `;
+            }
+        }
+
+        function showConfigTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.config-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll('.config-tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+        }
+
+        async function saveRagConfig() {
+            const btn = document.getElementById('saveConfigBtn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<span class="loading-spinner" style="width:16px;height:16px;margin:0;border-width:2px;"></span> Opslaan...`;
+
+            try {
+                const response = await fetch(`${API_BASE}/rag-config`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'save',
+                        config: ragConfig
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showGlobalSuccess('RAG configuratie opgeslagen!');
+                    hasUnsavedChanges = false;
+                    originalConfig = JSON.parse(JSON.stringify(ragConfig));
+                    btn.innerHTML = `
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                            <polyline points="17 21 17 13 7 13 7 21"/>
+                            <polyline points="7 3 7 8 15 8"/>
+                        </svg>
+                        Opslaan
+                    `;
+                } else {
+                    throw new Error(data.error || 'Kon configuratie niet opslaan');
+                }
+            } catch (error) {
+                console.error('Error saving RAG config:', error);
+                showGlobalError('Fout bij opslaan: ' + error.message);
+                btn.innerHTML = originalText;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function resetToDefaults() {
+            if (!confirm('Weet je zeker dat je alle instellingen wilt resetten naar de standaardwaarden?')) {
+                return;
+            }
+
+            ragConfig = JSON.parse(JSON.stringify(defaultConfig));
+            renderRagConfig();
+            markUnsaved();
+            showGlobalSuccess('Instellingen gereset naar standaardwaarden. Klik op Opslaan om te bevestigen.');
+        }
+
+        // Load RAG config on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(loadRagConfig, 500); // Load after auth check
+        });
     </script>
 </body>
 </html>
